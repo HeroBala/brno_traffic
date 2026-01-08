@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: brno_traffic_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: brno_traffic
+      POSTGRES_USER: hero
+      POSTGRES_PASSWORD: hero
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hero -d brno_traffic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:
+
