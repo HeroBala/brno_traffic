@@ -1,3 +1,7 @@
+-- =========================================================
+-- CORE CLEAN VIEWS — SAFE, NO DATA LOSS
+-- =========================================================
+
 BEGIN;
 
 -- =========================================================
@@ -6,16 +10,9 @@ BEGIN;
 CREATE SCHEMA IF NOT EXISTS core;
 
 -- =========================================================
--- 2. DROP EXISTING CORE TABLES (IDEMPOTENT)
+-- 2. VEHICLE TRAFFIC INTENSITY — CLEAN (VIEW)
 -- =========================================================
-DROP TABLE IF EXISTS core.vehicle_traffic_intensity_clean;
-DROP TABLE IF EXISTS core.weather_hourly_clean;
-DROP TABLE IF EXISTS core.traffic_accident_clean;
-
--- =========================================================
--- 3. VEHICLE TRAFFIC INTENSITY — CLEAN
--- =========================================================
-CREATE TABLE core.vehicle_traffic_intensity_clean AS
+CREATE OR REPLACE VIEW core.vehicle_traffic_intensity_clean AS
 SELECT
     id,
 
@@ -34,20 +31,19 @@ SELECT
     car_2022, truc_2022,
     car_2023, truc_2023,
 
-    datum_exportu::DATE      AS export_date,
-    objectid                AS object_id,
-    shape__length            AS shape_length,
-    globalid::UUID           AS global_id,
+    datum_exportu::DATE  AS export_date,
+    objectid            AS object_id,
+    shape__length       AS shape_length,
+    globalid::UUID      AS global_id
 
-    CURRENT_TIMESTAMP        AS _core_loaded_at
 FROM staging.stg_vehicle_traffic_intensity;
 
 -- =========================================================
--- 4. WEATHER HOURLY — CLEAN
+-- 3. WEATHER HOURLY — CLEAN (VIEW)
 -- =========================================================
-CREATE TABLE core.weather_hourly_clean AS
+CREATE OR REPLACE VIEW core.weather_hourly_clean AS
 SELECT
-    time::TIMESTAMP          AS weather_time,
+    time::TIMESTAMP AS weather_time,
 
     temperature_2m,
     relativehumidity_2m,
@@ -60,15 +56,14 @@ SELECT
     weathercode,
     windspeed_10m,
     cloudcover,
-    pressure_msl,
+    pressure_msl
 
-    CURRENT_TIMESTAMP        AS _core_loaded_at
 FROM staging.stg_weather_hourly;
 
 -- =========================================================
--- 5. TRAFFIC ACCIDENT — CORE CLEANING
+-- 4. TRAFFIC ACCIDENT — CLEAN (VIEW)
 -- =========================================================
-CREATE TABLE core.traffic_accident_clean AS
+CREATE OR REPLACE VIEW core.traffic_accident_clean AS
 SELECT
     object_id,
 
@@ -106,7 +101,7 @@ SELECT
         THEN 1 ELSE 0
     END AS dq_invalid_time,
 
-    hour::TEXT               AS hour_raw,
+    hour::TEXT AS hour_raw,
     day,
     month,
     year,
@@ -163,21 +158,9 @@ SELECT
     police_code_p48a,
     police_code_p59d,
 
-    global_id::UUID,
+    global_id::UUID
 
-    CURRENT_TIMESTAMP AS _core_loaded_at
 FROM staging.stg_traffic_accident;
 
--- =========================================================
--- 6. INDEXES (PERFORMANCE + DW READY)
--- =========================================================
-CREATE INDEX IF NOT EXISTS idx_core_weather_time
-    ON core.weather_hourly_clean(weather_time);
-
-CREATE INDEX IF NOT EXISTS idx_core_accident_date
-    ON core.traffic_accident_clean(accident_date);
-
-CREATE INDEX IF NOT EXISTS idx_core_accident_time
-    ON core.traffic_accident_clean(time_hhmm);
-
 COMMIT;
+
