@@ -1,7 +1,7 @@
 BEGIN;
 
 -- =========================================================
--- DATE DIMENSION  (SINGLE INSERT, UNION ALL SOURCES)
+-- DATE DIMENSION (INCREMENTAL, SAFE)
 -- =========================================================
 INSERT INTO dim.dim_date (
     date_key,
@@ -13,30 +13,30 @@ INSERT INTO dim.dim_date (
     month_name,
     is_weekend
 )
-SELECT DISTINCT
-    TO_CHAR(d, 'YYYYMMDD')::INT        AS date_key,
-    d                                 AS full_date,
-    EXTRACT(DAY FROM d)::INT           AS day,
-    EXTRACT(MONTH FROM d)::INT         AS month,
-    EXTRACT(YEAR FROM d)::INT          AS year,
-    TRIM(TO_CHAR(d, 'Day'))            AS day_of_week,
-    TRIM(TO_CHAR(d, 'Month'))          AS month_name,
-    EXTRACT(ISODOW FROM d) IN (6,7)    AS is_weekend
+SELECT
+    TO_CHAR(d, 'YYYYMMDD')::INT,
+    d,
+    EXTRACT(DAY FROM d)::INT,
+    EXTRACT(MONTH FROM d)::INT,
+    EXTRACT(YEAR FROM d)::INT,
+    TRIM(TO_CHAR(d, 'Day')),
+    TRIM(TO_CHAR(d, 'Month')),
+    EXTRACT(ISODOW FROM d) IN (6,7)
 FROM (
-    SELECT accident_date AS d
+    SELECT DISTINCT accident_date AS d
     FROM core.traffic_accident_clean
     WHERE accident_date IS NOT NULL
 
     UNION
 
-    SELECT weather_time::DATE AS d
+    SELECT DISTINCT weather_time::DATE
     FROM core.weather_hourly_clean
     WHERE weather_time IS NOT NULL
 ) dates
 ON CONFLICT (date_key) DO NOTHING;
 
 -- =========================================================
--- TIME DIMENSION
+-- TIME DIMENSION (INCREMENTAL, SAFE)
 -- =========================================================
 INSERT INTO dim.dim_time (
     time_key,
@@ -44,15 +44,18 @@ INSERT INTO dim.dim_time (
     minute,
     time_label
 )
-SELECT DISTINCT
-    time_hhmm                                   AS time_key,
-    time_hhmm / 100                             AS hour,
-    time_hhmm % 100                             AS minute,
-    LPAD((time_hhmm / 100)::TEXT,2,'0') || ':' ||
-    LPAD((time_hhmm % 100)::TEXT,2,'0')
-FROM core.traffic_accident_clean
-WHERE time_hhmm IS NOT NULL
-  AND dq_invalid_time = 0
+SELECT
+    time_hhmm,
+    time_hhmm / 100,
+    time_hhmm % 100,
+    LPAD((time_hhmm / 100)::TEXT, 2, '0') || ':' ||
+    LPAD((time_hhmm % 100)::TEXT, 2, '0')
+FROM (
+    SELECT DISTINCT time_hhmm
+    FROM core.traffic_accident_clean
+    WHERE time_hhmm IS NOT NULL
+      AND dq_invalid_time = 0
+) t
 ON CONFLICT (time_key) DO NOTHING;
 
 INSERT INTO dim.dim_time (
@@ -61,34 +64,74 @@ INSERT INTO dim.dim_time (
     minute,
     time_label
 )
-SELECT DISTINCT
+SELECT
     EXTRACT(HOUR FROM weather_time)::INT * 100 +
     EXTRACT(MINUTE FROM weather_time)::INT,
     EXTRACT(HOUR FROM weather_time)::INT,
     EXTRACT(MINUTE FROM weather_time)::INT,
     TO_CHAR(weather_time, 'HH24:MI')
-FROM core.weather_hourly_clean
-WHERE weather_time IS NOT NULL
+FROM (
+    SELECT DISTINCT weather_time
+    FROM core.weather_hourly_clean
+    WHERE weather_time IS NOT NULL
+) w
 ON CONFLICT (time_key) DO NOTHING;
 
 -- =========================================================
--- LOCATION DIMENSION
+-- LOCATION DIMENSION (SCD TYPE 2 — SAFE & INCREMENTAL)
 -- =========================================================
+
+-- close existing current records if new combination appears
+UPDATE dim.dim_location d
+SET valid_to = CURRENT_DATE - 1,
+    is_current = FALSE
+FROM (
+    SELECT DISTINCT
+        municipality_code,
+        city_district,
+        cadastral_area
+    FROM core.traffic_accident_clean
+    WHERE municipality_code IS NOT NULL
+) s
+WHERE d.municipality_code = s.municipality_code
+  AND d.cadastral_area = s.cadastral_area
+  AND d.is_current = TRUE
+  AND (
+        d.city_district IS DISTINCT FROM s.city_district
+      );
+
+-- insert new current versions
 INSERT INTO dim.dim_location (
     municipality_code,
     city_district,
-    cadastral_area
+    cadastral_area,
+    valid_from,
+    valid_to,
+    is_current
 )
-SELECT DISTINCT
-    municipality_code,
-    city_district,
-    cadastral_area
-FROM core.traffic_accident_clean
-WHERE municipality_code IS NOT NULL
-ON CONFLICT (municipality_code, city_district, cadastral_area) DO NOTHING;
+SELECT
+    s.municipality_code,
+    s.city_district,
+    s.cadastral_area,
+    CURRENT_DATE,
+    DATE '9999-12-31',
+    TRUE
+FROM (
+    SELECT DISTINCT
+        municipality_code,
+        city_district,
+        cadastral_area
+    FROM core.traffic_accident_clean
+    WHERE municipality_code IS NOT NULL
+) s
+LEFT JOIN dim.dim_location d
+  ON d.municipality_code = s.municipality_code
+ AND d.cadastral_area = s.cadastral_area
+ AND d.is_current = TRUE
+WHERE d.location_key IS NULL;
 
 -- =========================================================
--- WEATHER DIMENSION
+-- WEATHER DIMENSION (INCREMENTAL)
 -- =========================================================
 INSERT INTO dim.dim_weather (
     weathercode,
@@ -104,7 +147,7 @@ WHERE weathercode IS NOT NULL
 ON CONFLICT (weathercode, cloudcover, pressure_msl) DO NOTHING;
 
 -- =========================================================
--- VEHICLE DIMENSION
+-- VEHICLE DIMENSION (INCREMENTAL)
 -- =========================================================
 INSERT INTO dim.dim_vehicle (
     vehicle_type,
@@ -118,7 +161,7 @@ WHERE vehicle_id IS NOT NULL
 ON CONFLICT (vehicle_type, vehicle_id) DO NOTHING;
 
 -- =========================================================
--- PERSON DIMENSION
+-- PERSON DIMENSION (INCREMENTAL)
 -- =========================================================
 INSERT INTO dim.dim_person (
     gender,

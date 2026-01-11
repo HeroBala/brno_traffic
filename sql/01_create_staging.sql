@@ -1,21 +1,14 @@
--- =========================================================
--- STAGING SCHEMA FOR BRNO TRAFFIC PROJECT
--- =========================================================
-
 BEGIN;
 
--- ---------------------------------------------------------
--- 1. Create staging schema
--- ---------------------------------------------------------
+-- =====================================================
+-- SCHEMA
+-- =====================================================
 CREATE SCHEMA IF NOT EXISTS staging;
 
--- =========================================================
--- 2. VEHICLE TRAFFIC INTENSITY
--- =========================================================
-
-DROP TABLE IF EXISTS staging.stg_vehicle_traffic_intensity;
-
-CREATE TABLE staging.stg_vehicle_traffic_intensity (
+-- =====================================================
+-- VEHICLE TRAFFIC INTENSITY
+-- =====================================================
+CREATE TABLE IF NOT EXISTS staging.stg_vehicle_traffic_intensity (
     id                  INTEGER,
 
     car_2010            INTEGER,
@@ -52,16 +45,17 @@ CREATE TABLE staging.stg_vehicle_traffic_intensity (
     shape__length       DOUBLE PRECISION,
     globalid            UUID,
 
-    _loaded_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    -- technical column for incremental loading
+    _loaded_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- =========================================================
--- 3. WEATHER (HOURLY)
--- =========================================================
+CREATE INDEX IF NOT EXISTS idx_stg_vehicle_loaded_at
+    ON staging.stg_vehicle_traffic_intensity (_loaded_at);
 
-DROP TABLE IF EXISTS staging.stg_weather_hourly;
-
-CREATE TABLE staging.stg_weather_hourly (
+-- =====================================================
+-- WEATHER (HOURLY)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS staging.stg_weather_hourly (
     time                    TIMESTAMP,
 
     temperature_2m          DOUBLE PRECISION,
@@ -77,16 +71,19 @@ CREATE TABLE staging.stg_weather_hourly (
     cloudcover              INTEGER,
     pressure_msl            DOUBLE PRECISION,
 
-    _loaded_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    _loaded_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- =========================================================
--- 4. TRAFFIC ACCIDENTS
--- =========================================================
+CREATE INDEX IF NOT EXISTS idx_stg_weather_loaded_at
+    ON staging.stg_weather_hourly (_loaded_at);
 
-DROP TABLE IF EXISTS staging.stg_traffic_accident;
+CREATE INDEX IF NOT EXISTS idx_weather_time
+    ON staging.stg_weather_hourly (time);
 
-CREATE TABLE staging.stg_traffic_accident (
+-- =====================================================
+-- TRAFFIC ACCIDENTS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS staging.stg_traffic_accident (
     object_id               INTEGER,
 
     municipality_code       TEXT,
@@ -152,24 +149,20 @@ CREATE TABLE staging.stg_traffic_accident (
 
     global_id               UUID,
 
-    _loaded_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    _loaded_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- =========================================================
--- 5. INDEXES (STAGING SAFE)
--- =========================================================
-
-CREATE INDEX IF NOT EXISTS idx_weather_time
-    ON staging.stg_weather_hourly(time);
+CREATE INDEX IF NOT EXISTS idx_accident_loaded_at
+    ON staging.stg_traffic_accident (_loaded_at);
 
 CREATE INDEX IF NOT EXISTS idx_accident_date
-    ON staging.stg_traffic_accident(date);
+    ON staging.stg_traffic_accident (date);
 
 CREATE INDEX IF NOT EXISTS idx_accident_year
-    ON staging.stg_traffic_accident(year);
+    ON staging.stg_traffic_accident (year);
 
 CREATE INDEX IF NOT EXISTS idx_accident_municipality
-    ON staging.stg_traffic_accident(municipality_code);
+    ON staging.stg_traffic_accident (municipality_code);
 
 COMMIT;
 

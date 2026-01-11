@@ -9,22 +9,24 @@ CREATE SCHEMA IF NOT EXISTS fact;
 -- 2. FACT: TRAFFIC ACCIDENT
 -- Grain: 1 row = 1 accident
 -- =========================================================
-DROP TABLE IF EXISTS fact.fact_traffic_accident CASCADE;
-
-CREATE TABLE fact.fact_traffic_accident (
-    accident_fact_key   BIGSERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS fact.fact_traffic_accident (
+    accident_key        BIGSERIAL PRIMARY KEY,
 
     -- Foreign keys
     date_key            INT NOT NULL
-                            REFERENCES dim.dim_date(date_key),
+        REFERENCES dim.dim_date(date_key),
+
     time_key            INT
-                            REFERENCES dim.dim_time(time_key),
+        REFERENCES dim.dim_time(time_key),
+
     location_key        INT
-                            REFERENCES dim.dim_location(location_key),
+        REFERENCES dim.dim_location(location_key),
+
     vehicle_key         INT
-                            REFERENCES dim.dim_vehicle(vehicle_key),
+        REFERENCES dim.dim_vehicle(vehicle_key),
+
     person_key          INT
-                            REFERENCES dim.dim_person(person_key),
+        REFERENCES dim.dim_person(person_key),
 
     -- Degenerate dimensions
     accident_id         BIGINT,
@@ -42,35 +44,27 @@ CREATE TABLE fact.fact_traffic_accident (
     dq_invalid_time     INT,
 
     -- Audit
-    _fact_loaded_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    _fact_loaded_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- Grain protection
+    CONSTRAINT uq_fact_accident UNIQUE (accident_id)
 );
-
--- Helpful indexes
-CREATE INDEX idx_fact_accident_date
-    ON fact.fact_traffic_accident(date_key);
-
-CREATE INDEX idx_fact_accident_location
-    ON fact.fact_traffic_accident(location_key);
-
-CREATE INDEX idx_fact_accident_vehicle
-    ON fact.fact_traffic_accident(vehicle_key);
 
 -- =========================================================
 -- 3. FACT: WEATHER HOURLY
 -- Grain: 1 row = 1 hour
 -- =========================================================
-DROP TABLE IF EXISTS fact.fact_weather_hourly CASCADE;
-
-CREATE TABLE fact.fact_weather_hourly (
+CREATE TABLE IF NOT EXISTS fact.fact_weather_hourly (
     weather_fact_key    BIGSERIAL PRIMARY KEY,
 
-    -- Foreign keys
     date_key            INT NOT NULL
-                            REFERENCES dim.dim_date(date_key),
+        REFERENCES dim.dim_date(date_key),
+
     time_key            INT NOT NULL
-                            REFERENCES dim.dim_time(time_key),
+        REFERENCES dim.dim_time(time_key),
+
     weather_key         INT NOT NULL
-                            REFERENCES dim.dim_weather(weather_key),
+        REFERENCES dim.dim_weather(weather_key),
 
     -- Measures
     temperature_2m       DOUBLE PRECISION,
@@ -83,31 +77,22 @@ CREATE TABLE fact.fact_weather_hourly (
     windspeed_10m        DOUBLE PRECISION,
 
     -- Audit
-    _fact_loaded_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    _fact_loaded_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- Grain protection
-    CONSTRAINT uq_fact_weather_hourly
-        UNIQUE (date_key, time_key)
+    CONSTRAINT uq_weather_hour UNIQUE (date_key, time_key)
 );
-
--- Helpful indexes
-CREATE INDEX idx_fact_weather_date
-    ON fact.fact_weather_hourly(date_key);
 
 -- =========================================================
 -- 4. FACT: VEHICLE TRAFFIC INTENSITY
--- Grain: 1 row = location × year
+-- Grain: location × year
 -- =========================================================
-DROP TABLE IF EXISTS fact.fact_vehicle_traffic_intensity CASCADE;
-
-CREATE TABLE fact.fact_vehicle_traffic_intensity (
+CREATE TABLE IF NOT EXISTS fact.fact_vehicle_traffic_intensity (
     traffic_fact_key    BIGSERIAL PRIMARY KEY,
 
-    -- Foreign keys
     location_key        INT NOT NULL
-                            REFERENCES dim.dim_location(location_key),
+        REFERENCES dim.dim_location(location_key),
 
-    -- Time attribute (year-level grain)
     year                INT NOT NULL,
 
     -- Measures
@@ -115,16 +100,11 @@ CREATE TABLE fact.fact_vehicle_traffic_intensity (
     truck_count         INT,
 
     -- Audit
-    _fact_loaded_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    _fact_loaded_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- Grain protection
-    CONSTRAINT uq_fact_vehicle_traffic
-        UNIQUE (location_key, year)
+    CONSTRAINT uq_vehicle_intensity UNIQUE (location_key, year)
 );
-
--- Helpful indexes
-CREATE INDEX idx_fact_traffic_location
-    ON fact.fact_vehicle_traffic_intensity(location_key);
 
 COMMIT;
 

@@ -158,7 +158,10 @@ SELECT
     police_code_p48a,
     police_code_p59d,
 
-    global_id::UUID
+    global_id::UUID,
+
+    -- ✅ REQUIRED FOR INCREMENTAL LOADING
+    _loaded_at
 
 FROM staging.stg_traffic_accident;
 

@@ -8,9 +8,7 @@ CREATE SCHEMA IF NOT EXISTS dim;
 -- =========================================================
 -- DATE DIMENSION
 -- =========================================================
-DROP TABLE IF EXISTS dim.dim_date CASCADE;
-
-CREATE TABLE dim.dim_date (
+CREATE TABLE IF NOT EXISTS dim.dim_date (
     date_key        INT PRIMARY KEY,          -- YYYYMMDD
     full_date       DATE NOT NULL UNIQUE,
     day             SMALLINT NOT NULL,
@@ -24,9 +22,7 @@ CREATE TABLE dim.dim_date (
 -- =========================================================
 -- TIME DIMENSION
 -- =========================================================
-DROP TABLE IF EXISTS dim.dim_time CASCADE;
-
-CREATE TABLE dim.dim_time (
+CREATE TABLE IF NOT EXISTS dim.dim_time (
     time_key        INT PRIMARY KEY,           -- HHMM
     hour            SMALLINT NOT NULL CHECK (hour BETWEEN 0 AND 23),
     minute          SMALLINT NOT NULL CHECK (minute BETWEEN 0 AND 59),
@@ -34,56 +30,62 @@ CREATE TABLE dim.dim_time (
 );
 
 -- =========================================================
--- LOCATION DIMENSION
+-- LOCATION DIMENSION (SCD TYPE 2)
 -- =========================================================
-DROP TABLE IF EXISTS dim.dim_location CASCADE;
-
-CREATE TABLE dim.dim_location (
+CREATE TABLE IF NOT EXISTS dim.dim_location (
     location_key        SERIAL PRIMARY KEY,
+
     municipality_code   TEXT NOT NULL,
     city_district       TEXT NOT NULL,
     cadastral_area      TEXT NOT NULL,
-    CONSTRAINT uq_dim_location UNIQUE (municipality_code, city_district, cadastral_area)
+
+    valid_from          DATE NOT NULL,
+    valid_to            DATE NOT NULL DEFAULT '9999-12-31',
+    is_current          BOOLEAN NOT NULL DEFAULT TRUE
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dim_location_current
+    ON dim.dim_location (municipality_code, cadastral_area)
+    WHERE is_current = TRUE;
 
 -- =========================================================
 -- WEATHER DIMENSION
 -- =========================================================
-DROP TABLE IF EXISTS dim.dim_weather CASCADE;
-
-CREATE TABLE dim.dim_weather (
+CREATE TABLE IF NOT EXISTS dim.dim_weather (
     weather_key     SERIAL PRIMARY KEY,
     weathercode     INT,
     cloudcover      SMALLINT CHECK (cloudcover BETWEEN 0 AND 100),
-    pressure_msl    DOUBLE PRECISION,
-    CONSTRAINT uq_dim_weather UNIQUE (weathercode, cloudcover, pressure_msl)
+    pressure_msl    DOUBLE PRECISION
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dim_weather
+    ON dim.dim_weather (weathercode, cloudcover, pressure_msl);
 
 -- =========================================================
 -- VEHICLE DIMENSION
 -- =========================================================
-DROP TABLE IF EXISTS dim.dim_vehicle CASCADE;
-
-CREATE TABLE dim.dim_vehicle (
+CREATE TABLE IF NOT EXISTS dim.dim_vehicle (
     vehicle_key     SERIAL PRIMARY KEY,
     vehicle_type    TEXT,
-    vehicle_id      INT,
-    CONSTRAINT uq_dim_vehicle UNIQUE (vehicle_type, vehicle_id)
+    vehicle_id      INT
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dim_vehicle
+    ON dim.dim_vehicle (vehicle_type, vehicle_id);
 
 -- =========================================================
 -- PERSON DIMENSION
 -- =========================================================
-DROP TABLE IF EXISTS dim.dim_person CASCADE;
-
-CREATE TABLE dim.dim_person (
+CREATE TABLE IF NOT EXISTS dim.dim_person (
     person_key      SERIAL PRIMARY KEY,
     gender          TEXT,
     person_role     TEXT,
     age             SMALLINT CHECK (age >= 0),
-    birth_year      SMALLINT,
-    CONSTRAINT uq_dim_person UNIQUE (gender, person_role, age, birth_year)
+    birth_year      SMALLINT
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dim_person
+    ON dim.dim_person (gender, person_role, age, birth_year);
 
 COMMIT;
 
