@@ -1,23 +1,146 @@
+-- =====================================================
+-- 1. BI SCHEMA
+-- =====================================================
 CREATE SCHEMA IF NOT EXISTS bi;
 
--- =========================================================
--- 1. BI VIEW: TRAFFIC ACCIDENTS
--- =========================================================
-CREATE OR REPLACE VIEW bi.vw_traffic_accidents AS
+-- =====================================================
+-- 2. DIMENSION VIEWS
+-- =====================================================
+
+-- ---------- DIM DATE ----------
+CREATE OR REPLACE VIEW bi.dim_date AS
 SELECT
+    date_key,
+    full_date::date AS full_date,
+    day,
+    month,
+    year,
+    day_of_week,
+    month_name,
+    (is_weekend = 't') AS is_weekend
+FROM dim.dim_date;
+
+-- ---------- DIM TIME ----------
+CREATE OR REPLACE VIEW bi.dim_time AS
+SELECT
+    time_key,
+    hour,
+    minute,
+    time_label
+FROM dim.dim_time;
+
+-- ---------- DIM VEHICLE ----------
+CREATE OR REPLACE VIEW bi.dim_vehicle AS
+SELECT
+    vehicle_key,
+    vehicle_type
+FROM dim.dim_vehicle;
+
+-- ---------- DIM PERSON ----------
+CREATE OR REPLACE VIEW bi.dim_person AS
+SELECT
+    person_key,
+    gender,
+    person_role,
+    age,
+    birth_year
+FROM dim.dim_person;
+
+-- ---------- DIM WEATHER ----------
+CREATE OR REPLACE VIEW bi.dim_weather AS
+SELECT
+    weather_key,
+    weathercode,
+    cloudcover,
+    pressure_msl
+FROM dim.dim_weather;
+
+-- ---------- DIM LOCATION (SCD TYPE 2 READY) ----------
+CREATE OR REPLACE VIEW bi.dim_location AS
+SELECT
+    location_key,
+    object_id,
+    municipality_code,
+    city_district,
+    cadastral_area,
+    valid_from::date AS valid_from,
+    valid_to::date   AS valid_to,
+    (is_current = 't') AS is_current
+FROM dim.dim_location;
+
+-- =====================================================
+-- 3. FACT VIEWS (ATOMIC GRAIN)
+-- =====================================================
+
+-- ---------- FACT TRAFFIC ACCIDENT ----------
+CREATE OR REPLACE VIEW bi.fact_traffic_accident AS
+SELECT
+    accident_key,
+    date_key,
+    time_key,
+    location_key,
+    vehicle_key,
+    person_key,
+
+    lightly_injured,
+    seriously_injured,
+    killed_persons,
+
+    material_damage,
+    vehicle_damage,
+
+    (death_flag = 1)       AS death_flag,
+    (dq_invalid_time = 1) AS invalid_time_flag
+FROM fact.fact_traffic_accident;
+
+-- ---------- FACT TRAFFIC INTENSITY ----------
+CREATE OR REPLACE VIEW bi.fact_traffic_intensity AS
+SELECT
+    traffic_fact_key,
+    location_key,
+    year,
+    car_count,
+    truck_count,
+    car_count + truck_count AS total_vehicles
+FROM fact.fact_vehicle_traffic_intensity;
+
+-- ---------- FACT WEATHER HOURLY ----------
+CREATE OR REPLACE VIEW bi.fact_weather_hourly AS
+SELECT
+    weather_fact_key,
+    date_key,
+    time_key,
+    weather_key,
+
+    temperature_2m,
+    dewpoint_2m,
+    apparent_temperature,
+
+    precipitation,
+    rain,
+    snowfall,
+    snow_depth,
+    windspeed_10m
+FROM fact.fact_weather_hourly;
+
+-- =====================================================
+-- 4. DENORMALIZED WIDE FACT VIEW
+-- =====================================================
+
+CREATE OR REPLACE VIEW bi.fact_traffic_accident_wide AS
+SELECT
+    f.accident_key,
+
     -- Date
     d.full_date,
     d.year,
     d.month,
-    d.month_name,
-    d.day,
     d.day_of_week,
     d.is_weekend,
 
     -- Time
     t.hour,
     t.minute,
-    t.time_label,
 
     -- Location
     l.municipality_code,
@@ -26,17 +149,11 @@ SELECT
 
     -- Vehicle
     v.vehicle_type,
-    v.vehicle_id,
 
     -- Person
     p.gender,
     p.person_role,
     p.age,
-    p.birth_year,
-
-    -- Degenerate dimensions
-    f.accident_id,
-    f.object_id,
 
     -- Measures
     f.lightly_injured,
@@ -44,78 +161,13 @@ SELECT
     f.killed_persons,
     f.material_damage,
     f.vehicle_damage,
+    f.death_flag
 
-    -- Flags
-    f.death_flag,
-    f.dq_invalid_time,
-
-    -- Audit
-    f._fact_loaded_at
-FROM fact.fact_traffic_accident f
-JOIN dim.dim_date d
-  ON d.date_key = f.date_key
-LEFT JOIN dim.dim_time t
-  ON t.time_key = f.time_key
-LEFT JOIN dim.dim_location l
-  ON l.location_key = f.location_key
-LEFT JOIN dim.dim_vehicle v
-  ON v.vehicle_key = f.vehicle_key
-LEFT JOIN dim.dim_person p
-  ON p.person_key = f.person_key;
-
--- =========================================================
--- 2. BI VIEW: WEATHER HOURLY
--- =========================================================
-CREATE OR REPLACE VIEW bi.vw_weather_hourly AS
-SELECT
-    d.full_date,
-    d.year,
-    d.month,
-    d.month_name,
-    d.day,
-    d.day_of_week,
-    t.hour,
-    t.minute,
-    t.time_label,
-
-    w.weathercode,
-    w.cloudcover,
-    w.pressure_msl,
-
-    f.temperature_2m,
-    f.dewpoint_2m,
-    f.apparent_temperature,
-    f.precipitation,
-    f.rain,
-    f.snowfall,
-    f.snow_depth,
-    f.windspeed_10m,
-
-    f._fact_loaded_at
-FROM fact.fact_weather_hourly f
-JOIN dim.dim_date d
-  ON d.date_key = f.date_key
-JOIN dim.dim_time t
-  ON t.time_key = f.time_key
-JOIN dim.dim_weather w
-  ON w.weather_key = f.weather_key;
-
--- =========================================================
--- 3. BI VIEW: VEHICLE TRAFFIC INTENSITY
--- =========================================================
-CREATE OR REPLACE VIEW bi.vw_vehicle_traffic_intensity AS
-SELECT
-    l.municipality_code,
-    l.city_district,
-    l.cadastral_area,
-
-    f.year,
-    f.car_count,
-    f.truck_count,
-    (f.car_count + f.truck_count) AS total_vehicles,
-
-    f._fact_loaded_at
-FROM fact.fact_vehicle_traffic_intensity f
-JOIN dim.dim_location l
-  ON l.location_key = f.location_key;
+FROM bi.fact_traffic_accident f
+LEFT JOIN bi.dim_date     d ON f.date_key     = d.date_key
+LEFT JOIN bi.dim_time     t ON f.time_key     = t.time_key
+LEFT JOIN bi.dim_location l ON f.location_key = l.location_key
+                           AND l.is_current
+LEFT JOIN bi.dim_vehicle  v ON f.vehicle_key  = v.vehicle_key
+LEFT JOIN bi.dim_person   p ON f.person_key   = p.person_key;
 

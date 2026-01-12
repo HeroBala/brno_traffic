@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 DB=brno
-OUT=bi
+OUT=factsANDdims
 
 mkdir -p "$OUT"
 

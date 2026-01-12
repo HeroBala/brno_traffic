@@ -1,185 +1,160 @@
 from graphviz import Digraph
+from pathlib import Path
 
-# =====================================================
-# COLORS
-# =====================================================
-COLOR_FACT = "#F6B6B6"
-COLOR_DIM = "#D8ECFF"
-COLOR_TIME = "#FFF4C2"
-COLOR_SPATIAL = "#DFF3E3"
+# =========================================================
+# OUTPUT PATH
+# =========================================================
+output_dir = Path.home() / "brno_traffic" / "documents"
+output_dir.mkdir(parents=True, exist_ok=True)
+output_path = output_dir / "brno_traffic_er_diagram_large_text"
 
-# =====================================================
+# =========================================================
 # GRAPH SETUP
-# =====================================================
-er = Digraph(
-    "Traffic_DW_ERD_Final",
+# =========================================================
+dot = Digraph(
+    "Brno Traffic ER Diagram",
     format="png",
     graph_attr={
-        "rankdir": "TB",          # TOP → BOTTOM stars
+        "rankdir": "LR",
         "splines": "ortho",
-        "nodesep": "1.2",
+        "nodesep": "1.1",
         "ranksep": "1.4",
-        "fontname": "Helvetica"
+        "fontname": "Helvetica",
+        "bgcolor": "white"
     }
 )
 
-er.attr("edge", arrowsize="0.8", penwidth="1.2", color="#444444")
+# =========================================================
+# DEFAULT NODE STYLE (BIGGER TEXT)
+# =========================================================
+dot.attr(
+    "node",
+    shape="box",
+    style="rounded,filled",
+    fontname="Helvetica",
+    fontsize="13",        # ⬅️ bigger text
+    margin="0.18,0.12",   # ⬅️ more padding
+    color="#455A64",
+    fontcolor="#000000"
+)
 
-# =====================================================
-# TABLE HELPER
-# =====================================================
-def table(name, columns, color):
-    label = f"<<TABLE BORDER='1' CELLBORDER='1' CELLSPACING='0' CELLPADDING='6' BGCOLOR='{color}'>"
-    label += f"<TR><TD><B>{name}</B></TD></TR>"
-    for col in columns:
-        label += f"<TR><TD ALIGN='LEFT'>{col}</TD></TR>"
-    label += "</TABLE>>"
-    er.node(name, label=label, shape="plaintext")
+# =========================================================
+# EDGE STYLE (BIGGER LABELS)
+# =========================================================
+dot.attr(
+    "edge",
+    fontname="Helvetica",
+    fontsize="12",
+    color="#424242"
+)
 
-# =====================================================
+# =========================================================
+# COLOR PALETTE
+# =========================================================
+DIM_COLOR  = "#E3F2FD"   # light blue
+FACT_COLOR = "#FFF3E0"   # light orange
+
+# =========================================================
 # DIMENSIONS
-# =====================================================
+# =========================================================
+dot.node("DIM_DATE", """DIM_DATE
+PK date_key
+full_date
+day
+month
+year
+day_of_week
+month_name
+is_weekend""", fillcolor=DIM_COLOR)
 
-table("dim_date", [
-    "date_key (PK)",
-    "full_date",
-    "day",
-    "month",
-    "year",
-    "day_of_week",
-    "month_name",
-    "is_weekend"
-], COLOR_TIME)
+dot.node("DIM_TIME", """DIM_TIME
+PK time_key
+hour
+minute
+time_label""", fillcolor=DIM_COLOR)
 
-table("dim_time", [
-    "time_key (PK)",
-    "hour",
-    "minute",
-    "time_label"
-], COLOR_TIME)
+dot.node("DIM_LOCATION", """DIM_LOCATION
+PK location_key
+object_id
+municipality_code
+city_district
+cadastral_area
+valid_from
+valid_to
+is_current""", fillcolor=DIM_COLOR)
 
-table("dim_weather", [
-    "weather_key (PK)",
-    "weathercode",
-    "cloudcover",
-    "pressure_msl"
-], COLOR_DIM)
+dot.node("DIM_VEHICLE", """DIM_VEHICLE
+PK vehicle_key
+vehicle_type
+vehicle_id""", fillcolor=DIM_COLOR)
 
-table("dim_vehicle", [
-    "vehicle_key (PK)",
-    "vehicle_id",
-    "vehicle_type"
-], COLOR_DIM)
+dot.node("DIM_PERSON", """DIM_PERSON
+PK person_key
+gender
+person_role
+age
+birth_year""", fillcolor=DIM_COLOR)
 
-table("dim_person", [
-    "person_key (PK)",
-    "gender",
-    "person_role",
-    "age",
-    "birth_year"
-], COLOR_DIM)
+dot.node("DIM_WEATHER", """DIM_WEATHER
+PK weather_key
+weathercode
+cloudcover
+pressure_msl""", fillcolor=DIM_COLOR)
 
-table("dim_location", [
-    "location_key (PK)",
-    "municipality_code",
-    "city_district",
-    "cadastral_area"
-], COLOR_SPATIAL)
+# =========================================================
+# FACTS
+# =========================================================
+dot.node("FACT_TRAFFIC_ACCIDENT", """FACT_TRAFFIC_ACCIDENT
+PK accident_key
+FK date_key
+FK time_key (nullable)
+FK location_key
+FK vehicle_key (nullable)
+FK person_key (nullable)
+accident_id
+lightly_injured
+seriously_injured
+killed_persons
+material_damage
+vehicle_damage
+death_flag
+dq_invalid_time""", fillcolor=FACT_COLOR)
 
-# =====================================================
-# FACT TABLES
-# =====================================================
+dot.node("FACT_WEATHER_HOURLY", """FACT_WEATHER_HOURLY
+PK weather_fact_key
+FK date_key
+FK time_key
+FK weather_key
+temperature_2m
+precipitation
+windspeed_10m""", fillcolor=FACT_COLOR)
 
-table("fact_weather_hourly", [
-    "weather_fact_key (PK)",
-    "date_key (FK)",
-    "time_key (FK)",
-    "weather_key (FK)",
-    "temperature_2m",
-    "dewpoint_2m",
-    "apparent_temperature",
-    "precipitation",
-    "rain",
-    "snowfall",
-    "snow_depth",
-    "windspeed_10m"
-], COLOR_FACT)
+dot.node("FACT_VEHICLE_TRAFFIC_INTENSITY", """FACT_VEHICLE_TRAFFIC_INTENSITY
+PK traffic_fact_key
+FK location_key
+year
+car_count
+truck_count""", fillcolor=FACT_COLOR)
 
-table("fact_traffic_accident", [
-    "accident_key (PK)",
-    "date_key (FK)",
-    "time_key (FK)",
-    "location_key (FK)",
-    "vehicle_key (FK)",
-    "person_key (FK)",
-    "accident_id (DD)",
-    "object_id (DD)",
-    "lightly_injured",
-    "seriously_injured",
-    "killed_persons",
-    "material_damage",
-    "vehicle_damage",
-    "death_flag",
-    "dq_invalid_time"
-], COLOR_FACT)
+# =========================================================
+# RELATIONSHIPS (ER CARDINALITY)
+# =========================================================
+dot.edge("DIM_DATE", "FACT_TRAFFIC_ACCIDENT", label="1 : N")
+dot.edge("DIM_TIME", "FACT_TRAFFIC_ACCIDENT", label="1 : 0..N")
+dot.edge("DIM_LOCATION", "FACT_TRAFFIC_ACCIDENT", label="1 : N")
+dot.edge("DIM_VEHICLE", "FACT_TRAFFIC_ACCIDENT", label="1 : 0..N")
+dot.edge("DIM_PERSON", "FACT_TRAFFIC_ACCIDENT", label="1 : 0..N")
 
-table("fact_vehicle_traffic_intensity", [
-    "traffic_fact_key (PK)",
-    "location_key (FK)",
-    "year",
-    "car_count",
-    "truck_count"
-], COLOR_FACT)
+dot.edge("DIM_DATE", "FACT_WEATHER_HOURLY", label="1 : N")
+dot.edge("DIM_TIME", "FACT_WEATHER_HOURLY", label="1 : N")
+dot.edge("DIM_WEATHER", "FACT_WEATHER_HOURLY", label="1 : N")
 
-# =====================================================
-# RANKING (THIS FIXES YOUR LAYOUT)
-# =====================================================
+dot.edge("DIM_LOCATION", "FACT_VEHICLE_TRAFFIC_INTENSITY", label="1 : N")
 
-# Weather star (TOP)
-with er.subgraph() as s:
-    s.attr(rank="same")
-    s.node("dim_weather")
-    s.node("dim_date")
-    s.node("dim_time")
-
-with er.subgraph() as s:
-    s.attr(rank="same")
-    s.node("fact_weather_hourly")
-
-# Accident star (CENTER)
-with er.subgraph() as s:
-    s.attr(rank="same")
-    s.node("dim_vehicle")
-    s.node("dim_person")
-    s.node("fact_traffic_accident")
-    s.node("dim_location")
-
-# Traffic intensity star (BOTTOM)
-with er.subgraph() as s:
-    s.attr(rank="same")
-    s.node("fact_vehicle_traffic_intensity")
-
-# =====================================================
-# RELATIONSHIPS
-# =====================================================
-
-# Weather
-er.edge("dim_date", "fact_weather_hourly")
-er.edge("dim_time", "fact_weather_hourly")
-er.edge("dim_weather", "fact_weather_hourly")
-
-# Accident
-er.edge("dim_date", "fact_traffic_accident")
-er.edge("dim_time", "fact_traffic_accident")
-er.edge("dim_vehicle", "fact_traffic_accident")
-er.edge("dim_person", "fact_traffic_accident")
-er.edge("dim_location", "fact_traffic_accident")
-
-# Traffic intensity
-er.edge("dim_location", "fact_vehicle_traffic_intensity")
-
-# =====================================================
+# =========================================================
 # RENDER
-# =====================================================
-er.render("traffic_dw_erd_star_layout", cleanup=True)
+# =========================================================
+dot.render(str(output_path), cleanup=True)
+
+print(f"ER diagram saved to: {output_path}.png")
 
