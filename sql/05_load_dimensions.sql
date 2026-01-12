@@ -26,9 +26,7 @@ FROM (
     SELECT DISTINCT accident_date AS d
     FROM core.traffic_accident_clean
     WHERE accident_date IS NOT NULL
-
     UNION
-
     SELECT DISTINCT weather_time::DATE
     FROM core.weather_hourly_clean
     WHERE weather_time IS NOT NULL
@@ -44,18 +42,15 @@ INSERT INTO dim.dim_time (
     minute,
     time_label
 )
-SELECT
+SELECT DISTINCT
     time_hhmm,
     time_hhmm / 100,
     time_hhmm % 100,
-    LPAD((time_hhmm / 100)::TEXT, 2, '0') || ':' ||
-    LPAD((time_hhmm % 100)::TEXT, 2, '0')
-FROM (
-    SELECT DISTINCT time_hhmm
-    FROM core.traffic_accident_clean
-    WHERE time_hhmm IS NOT NULL
-      AND dq_invalid_time = 0
-) t
+    LPAD((time_hhmm / 100)::TEXT,2,'0') || ':' ||
+    LPAD((time_hhmm % 100)::TEXT,2,'0')
+FROM core.traffic_accident_clean
+WHERE time_hhmm IS NOT NULL
+  AND dq_invalid_time = 0
 ON CONFLICT (time_key) DO NOTHING;
 
 INSERT INTO dim.dim_time (
@@ -64,73 +59,43 @@ INSERT INTO dim.dim_time (
     minute,
     time_label
 )
-SELECT
+SELECT DISTINCT
     EXTRACT(HOUR FROM weather_time)::INT * 100 +
     EXTRACT(MINUTE FROM weather_time)::INT,
     EXTRACT(HOUR FROM weather_time)::INT,
     EXTRACT(MINUTE FROM weather_time)::INT,
     TO_CHAR(weather_time, 'HH24:MI')
-FROM (
-    SELECT DISTINCT weather_time
-    FROM core.weather_hourly_clean
-    WHERE weather_time IS NOT NULL
-) w
+FROM core.weather_hourly_clean
+WHERE weather_time IS NOT NULL
 ON CONFLICT (time_key) DO NOTHING;
 
 -- =========================================================
--- LOCATION DIMENSION (SCD TYPE 2, DEDUPLICATED, SAFE)
+-- LOCATION DIMENSION (INITIAL + INCREMENTAL, NO SCD HERE)
 -- =========================================================
-
--- 1. Close current records if city_district changed
-UPDATE dim.dim_location d
-SET valid_to = CURRENT_DATE - 1,
-    is_current = FALSE
-FROM (
-    SELECT DISTINCT
-        municipality_code,
-        cadastral_area,
-        city_district
-    FROM core.traffic_accident_clean
-    WHERE municipality_code IS NOT NULL
-) s
-WHERE d.municipality_code = s.municipality_code
-  AND d.cadastral_area = s.cadastral_area
-  AND d.is_current = TRUE
-  AND d.city_district IS DISTINCT FROM s.city_district;
-
--- 2. Insert new current versions (ONE PER LOCATION)
 INSERT INTO dim.dim_location (
-    object_id,
     municipality_code,
-    city_district,
     cadastral_area,
+    city_district,
     valid_from,
     valid_to,
     is_current
 )
-SELECT
-    s.object_id,
-    s.municipality_code,
-    s.city_district,
-    s.cadastral_area,
+SELECT DISTINCT
+    municipality_code,
+    cadastral_area,
+    city_district,
     CURRENT_DATE,
     DATE '9999-12-31',
     TRUE
-FROM (
-    SELECT DISTINCT ON (municipality_code, cadastral_area)
-        object_id,
-        municipality_code,
-        city_district,
-        cadastral_area
-    FROM core.traffic_accident_clean
-    WHERE municipality_code IS NOT NULL
-    ORDER BY municipality_code, cadastral_area, accident_date DESC
-) s
-LEFT JOIN dim.dim_location d
-  ON d.municipality_code = s.municipality_code
- AND d.cadastral_area = s.cadastral_area
- AND d.is_current = TRUE
-WHERE d.location_key IS NULL;
+FROM core.traffic_accident_clean s
+WHERE municipality_code IS NOT NULL
+  AND NOT EXISTS (
+        SELECT 1
+        FROM dim.dim_location d
+        WHERE d.municipality_code = s.municipality_code
+          AND d.cadastral_area    = s.cadastral_area
+          AND d.is_current        = TRUE
+  );
 
 -- =========================================================
 -- WEATHER DIMENSION (INCREMENTAL)

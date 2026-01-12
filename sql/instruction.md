@@ -21,4 +21,5 @@ Shows that only new rows are loaded.
 4️⃣ TEST SCD TYPE 2 (DEMO)
 
 Shows history tracking in dimensions.
-=> 13 → 05b → 14
+=> 13
+
