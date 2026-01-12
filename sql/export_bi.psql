@@ -1,18 +1,34 @@
 -- ==========================================
--- EXPORT ALL BI VIEWS TO bi/ FOLDER
+-- EXPORT ALL DIM & FACT TABLES TO CSV
+-- CLIENT-SIDE, NO COPY, NO gexec, NO DO
 -- ==========================================
 
-\echo Creating bi export folder (if not exists)...
+\echo Creating export folder (if not exists)...
 \! mkdir -p bi
 
-\echo Exporting bi.vw_traffic_accidents...
-\copy (SELECT * FROM bi.vw_traffic_accidents) TO 'bi/vw_traffic_accidents.csv' WITH (FORMAT csv, HEADER true)
+-- -------------------------
+-- DIM tables
+-- -------------------------
+\echo Exporting DIM tables...
 
-\echo Exporting bi.vw_weather_hourly...
-\copy (SELECT * FROM bi.vw_weather_hourly) TO 'bi/vw_weather_hourly.csv' WITH (FORMAT csv, HEADER true)
+\set QUIET on
+SELECT tablename FROM pg_tables WHERE schemaname = 'dim';
+\set QUIET off
 
-\echo Exporting bi.vw_vehicle_traffic_intensity...
-\copy (SELECT * FROM bi.vw_vehicle_traffic_intensity) TO 'bi/vw_vehicle_traffic_intensity.csv' WITH (FORMAT csv, HEADER true)
+\foreach t in `psql -d brno -Atc "SELECT tablename FROM pg_tables WHERE schemaname='dim'"` 
+    \echo Exporting dim.:t
+    \copy (SELECT * FROM dim.:t) TO 'bi/dim_:t.csv' WITH (FORMAT csv, HEADER true)
+\end
 
-\echo DONE: All BI views exported into bi/ folder
+-- -------------------------
+-- FACT tables
+-- -------------------------
+\echo Exporting FACT tables...
+
+\foreach t in `psql -d brno -Atc "SELECT tablename FROM pg_tables WHERE schemaname='fact'"` 
+    \echo Exporting fact.:t
+    \copy (SELECT * FROM fact.:t) TO 'bi/fact_:t.csv' WITH (FORMAT csv, HEADER true)
+\end
+
+\echo DONE: All DIM and FACT tables exported into bi/ folder
 

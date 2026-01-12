@@ -1,8 +1,9 @@
 BEGIN;
 
 -- =========================================================
--- 1. FACT: TRAFFIC ACCIDENT (INCREMENTAL)
+-- 1. FACT: TRAFFIC ACCIDENT
 -- =========================================================
+
 INSERT INTO fact.fact_traffic_accident (
     date_key,
     time_key,
@@ -20,11 +21,11 @@ INSERT INTO fact.fact_traffic_accident (
     dq_invalid_time
 )
 SELECT
-    d.date_key,
-    t.time_key,
-    l.location_key,
-    v.vehicle_key,
-    p.person_key,
+    d.date_key                                           AS date_key,
+    COALESCE(t.time_key, -1)                             AS time_key,
+    COALESCE(l.location_key, -1)                         AS location_key,
+    COALESCE(v.vehicle_key, -1)                          AS vehicle_key,
+    COALESCE(p.person_key, -1)                           AS person_key,
     a.accident_id,
     a.object_id,
     a.lightly_injured,
@@ -35,27 +36,39 @@ SELECT
     a.death_flag,
     a.dq_invalid_time
 FROM core.traffic_accident_clean a
+
+-- DATE (MANDATORY)
 JOIN dim.dim_date d
   ON d.full_date = a.accident_date
+
+-- TIME (INVALID TIMES → UNKNOWN)
 LEFT JOIN dim.dim_time t
   ON t.time_key = a.time_hhmm
+ AND a.dq_invalid_time = 0
+
+-- LOCATION (BUSINESS KEY = OBJECT_ID)
 LEFT JOIN dim.dim_location l
-  ON l.municipality_code = a.municipality_code
- AND l.cadastral_area    = a.cadastral_area
- AND a.accident_date BETWEEN l.valid_from AND l.valid_to
+  ON l.object_id = a.object_id
+ AND l.is_current = TRUE
+
+-- VEHICLE
 LEFT JOIN dim.dim_vehicle v
   ON v.vehicle_type = a.vehicle_type
  AND v.vehicle_id   = a.vehicle_id
+
+-- PERSON
 LEFT JOIN dim.dim_person p
   ON p.gender       = a.gender
  AND p.person_role = a.person_role
  AND p.age         = a.age
  AND p.birth_year  = a.birth_year
+
 ON CONFLICT (accident_id) DO NOTHING;
 
 -- =========================================================
--- 2. FACT: WEATHER HOURLY (IDEMPOTENT)
+-- 2. FACT: WEATHER HOURLY
 -- =========================================================
+
 INSERT INTO fact.fact_weather_hourly (
     date_key,
     time_key,
@@ -82,20 +95,25 @@ SELECT
     c.snow_depth,
     c.windspeed_10m
 FROM core.weather_hourly_clean c
+
 JOIN dim.dim_date d
   ON d.full_date = c.weather_time::DATE
+
 JOIN dim.dim_time t
   ON t.hour   = EXTRACT(HOUR FROM c.weather_time)
  AND t.minute = EXTRACT(MINUTE FROM c.weather_time)
+
 JOIN dim.dim_weather w
   ON w.weathercode  = c.weathercode
  AND w.cloudcover   = c.cloudcover
  AND w.pressure_msl = c.pressure_msl
+
 ON CONFLICT (date_key, time_key) DO NOTHING;
 
 -- =========================================================
--- 3. FACT: VEHICLE TRAFFIC INTENSITY (CORRECT UNPIVOT)
+-- 3. FACT: VEHICLE TRAFFIC INTENSITY
 -- =========================================================
+
 INSERT INTO fact.fact_vehicle_traffic_intensity (
     location_key,
     year,
@@ -103,11 +121,12 @@ INSERT INTO fact.fact_vehicle_traffic_intensity (
     truck_count
 )
 SELECT
-    l.location_key,
+    COALESCE(l.location_key, -1) AS location_key,
     y.year,
     y.car_count,
     y.truck_count
 FROM core.vehicle_traffic_intensity_clean v
+
 CROSS JOIN LATERAL (
     VALUES
         (2010, v.car_2010, v.truc_2010),
@@ -125,10 +144,14 @@ CROSS JOIN LATERAL (
         (2022, v.car_2022, v.truc_2022),
         (2023, v.car_2023, v.truc_2023)
 ) AS y(year, car_count, truck_count)
-JOIN dim.dim_location l
-  ON l.location_key = v.object_id
+
+LEFT JOIN dim.dim_location l
+  ON l.object_id = v.object_id
+ AND l.is_current = TRUE
+
 WHERE y.car_count IS NOT NULL
    OR y.truck_count IS NOT NULL
+
 ON CONFLICT (location_key, year) DO NOTHING;
 
 COMMIT;
