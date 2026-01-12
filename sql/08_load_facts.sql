@@ -1,5 +1,8 @@
 BEGIN;
 
+-- =========================================================
+-- 1. FACT: TRAFFIC ACCIDENT (INCREMENTAL)
+-- =========================================================
 INSERT INTO fact.fact_traffic_accident (
     date_key,
     time_key,
@@ -48,20 +51,85 @@ LEFT JOIN dim.dim_person p
  AND p.person_role = a.person_role
  AND p.age         = a.age
  AND p.birth_year  = a.birth_year
-WHERE a._loaded_at >
-      (SELECT last_processed_at
-       FROM etl.etl_control
-       WHERE process_name = 'load_facts')
-
 ON CONFLICT (accident_id) DO NOTHING;
 
--- ✅ update watermark ONLY after successful insert
-UPDATE etl.etl_control
-SET last_processed_at = (
-    SELECT COALESCE(MAX(_loaded_at), last_processed_at)
-    FROM core.traffic_accident_clean
+-- =========================================================
+-- 2. FACT: WEATHER HOURLY (IDEMPOTENT)
+-- =========================================================
+INSERT INTO fact.fact_weather_hourly (
+    date_key,
+    time_key,
+    weather_key,
+    temperature_2m,
+    dewpoint_2m,
+    apparent_temperature,
+    precipitation,
+    rain,
+    snowfall,
+    snow_depth,
+    windspeed_10m
 )
-WHERE process_name = 'load_facts';
+SELECT
+    d.date_key,
+    t.time_key,
+    w.weather_key,
+    c.temperature_2m,
+    c.dewpoint_2m,
+    c.apparent_temperature,
+    c.precipitation,
+    c.rain,
+    c.snowfall,
+    c.snow_depth,
+    c.windspeed_10m
+FROM core.weather_hourly_clean c
+JOIN dim.dim_date d
+  ON d.full_date = c.weather_time::DATE
+JOIN dim.dim_time t
+  ON t.hour   = EXTRACT(HOUR FROM c.weather_time)
+ AND t.minute = EXTRACT(MINUTE FROM c.weather_time)
+JOIN dim.dim_weather w
+  ON w.weathercode  = c.weathercode
+ AND w.cloudcover   = c.cloudcover
+ AND w.pressure_msl = c.pressure_msl
+ON CONFLICT (date_key, time_key) DO NOTHING;
+
+-- =========================================================
+-- 3. FACT: VEHICLE TRAFFIC INTENSITY (CORRECT UNPIVOT)
+-- =========================================================
+INSERT INTO fact.fact_vehicle_traffic_intensity (
+    location_key,
+    year,
+    car_count,
+    truck_count
+)
+SELECT
+    l.location_key,
+    y.year,
+    y.car_count,
+    y.truck_count
+FROM core.vehicle_traffic_intensity_clean v
+CROSS JOIN LATERAL (
+    VALUES
+        (2010, v.car_2010, v.truc_2010),
+        (2011, v.car_2011, v.truc_2011),
+        (2012, v.car_2012, v.truc_2012),
+        (2013, v.car_2013, v.truc_2013),
+        (2014, v.car_2014, v.truc_2014),
+        (2015, v.car_2015, v.truc_2015),
+        (2016, v.car_2016, v.truc_2016),
+        (2017, v.car_2017, v.truc_2017),
+        (2018, v.car_2018, v.truc_2018),
+        (2019, v.car_2019, v.truc_2019),
+        (2020, v.car_2020, v.truc_2020),
+        (2021, v.car_2021, v.truc_2021),
+        (2022, v.car_2022, v.truc_2022),
+        (2023, v.car_2023, v.truc_2023)
+) AS y(year, car_count, truck_count)
+JOIN dim.dim_location l
+  ON l.location_key = v.object_id
+WHERE y.car_count IS NOT NULL
+   OR y.truck_count IS NOT NULL
+ON CONFLICT (location_key, year) DO NOTHING;
 
 COMMIT;
 

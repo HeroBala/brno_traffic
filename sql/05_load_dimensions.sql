@@ -78,30 +78,29 @@ FROM (
 ON CONFLICT (time_key) DO NOTHING;
 
 -- =========================================================
--- LOCATION DIMENSION (SCD TYPE 2 — SAFE & INCREMENTAL)
+-- LOCATION DIMENSION (SCD TYPE 2, DEDUPLICATED, SAFE)
 -- =========================================================
 
--- close existing current records if new combination appears
+-- 1. Close current records if city_district changed
 UPDATE dim.dim_location d
 SET valid_to = CURRENT_DATE - 1,
     is_current = FALSE
 FROM (
     SELECT DISTINCT
         municipality_code,
-        city_district,
-        cadastral_area
+        cadastral_area,
+        city_district
     FROM core.traffic_accident_clean
     WHERE municipality_code IS NOT NULL
 ) s
 WHERE d.municipality_code = s.municipality_code
   AND d.cadastral_area = s.cadastral_area
   AND d.is_current = TRUE
-  AND (
-        d.city_district IS DISTINCT FROM s.city_district
-      );
+  AND d.city_district IS DISTINCT FROM s.city_district;
 
--- insert new current versions
+-- 2. Insert new current versions (ONE PER LOCATION)
 INSERT INTO dim.dim_location (
+    object_id,
     municipality_code,
     city_district,
     cadastral_area,
@@ -110,6 +109,7 @@ INSERT INTO dim.dim_location (
     is_current
 )
 SELECT
+    s.object_id,
     s.municipality_code,
     s.city_district,
     s.cadastral_area,
@@ -117,12 +117,14 @@ SELECT
     DATE '9999-12-31',
     TRUE
 FROM (
-    SELECT DISTINCT
+    SELECT DISTINCT ON (municipality_code, cadastral_area)
+        object_id,
         municipality_code,
         city_district,
         cadastral_area
     FROM core.traffic_accident_clean
     WHERE municipality_code IS NOT NULL
+    ORDER BY municipality_code, cadastral_area, accident_date DESC
 ) s
 LEFT JOIN dim.dim_location d
   ON d.municipality_code = s.municipality_code

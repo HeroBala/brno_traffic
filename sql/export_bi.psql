@@ -1,0 +1,18 @@
+-- ==========================================
+-- EXPORT ALL BI VIEWS TO bi/ FOLDER
+-- ==========================================
+
+\echo Creating bi export folder (if not exists)...
+\! mkdir -p bi
+
+\echo Exporting bi.vw_traffic_accidents...
+\copy (SELECT * FROM bi.vw_traffic_accidents) TO 'bi/vw_traffic_accidents.csv' WITH (FORMAT csv, HEADER true)
+
+\echo Exporting bi.vw_weather_hourly...
+\copy (SELECT * FROM bi.vw_weather_hourly) TO 'bi/vw_weather_hourly.csv' WITH (FORMAT csv, HEADER true)
+
+\echo Exporting bi.vw_vehicle_traffic_intensity...
+\copy (SELECT * FROM bi.vw_vehicle_traffic_intensity) TO 'bi/vw_vehicle_traffic_intensity.csv' WITH (FORMAT csv, HEADER true)
+
+\echo DONE: All BI views exported into bi/ folder
+

@@ -30,10 +30,13 @@ CREATE TABLE IF NOT EXISTS dim.dim_time (
 );
 
 -- =========================================================
--- LOCATION DIMENSION (SCD TYPE 2)
+-- LOCATION DIMENSION (SCD TYPE 2)  ✅ FIXED
 -- =========================================================
 CREATE TABLE IF NOT EXISTS dim.dim_location (
     location_key        SERIAL PRIMARY KEY,
+
+    -- ✅ SOURCE SYSTEM BUSINESS KEY (REQUIRED)
+    object_id           INTEGER,
 
     municipality_code   TEXT NOT NULL,
     city_district       TEXT NOT NULL,
