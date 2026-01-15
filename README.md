@@ -8,7 +8,7 @@ The solution follows **enterprise data warehousing best practices**, including l
 
 🔗 **Project Repository:**  
 https://github.com/herobala/brno_traffic
-👉 **[View Dashboard](https://app.powerbi.com/view?r=eyJrIjoiZTI3NWVkNmQtMDI2ZS00OGE4LTk1N2EtNjBjMTgyMGFhNmNhIiwidCI6IjBmYzM3OWMyLTlhYWMtNGExYy05ZmJkLWY0ZGMyMDk5OWU5YyIsImMiOjh9)**
+[![Power BI Dashboard](dashboard.png)](https://app.powerbi.com/view?r=eyJrIjoiZTI3NWVkNmQtMDI2ZS00OGE4LTk1N2EtNjBjMTgyMGFhNmNhIiwidCI6IjBmYzM3OWMyLTlhYWMtNGExYy05ZmJkLWY0ZGMyMDk5OWU5YyIsImMiOjh9)
 
 ---
 
