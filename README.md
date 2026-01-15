@@ -5,8 +5,11 @@ It integrates **traffic accident data, vehicle traffic intensity data, and weath
 
 The solution follows **enterprise data warehousing best practices**, including layered ETL, dimensional modeling, Slowly Changing Dimensions (SCD Type 2), incremental loading, and BI-ready semantic views.
 
-🔗 **Project Repository:**  
-[https://github.com/herobala/brno_traffic](https://github.com/herobala/brno_traffic)
+---
+
+## 🔗 Project Repository
+
+https://github.com/herobala/brno_traffic
 
 ---
 
@@ -20,10 +23,10 @@ The solution follows **enterprise data warehousing best practices**, including l
 
 ## 🧰 Technologies Used
 
-- **PostgreSQL (psql)** – Data warehouse and ETL implementation  
-- **SQL (PostgreSQL dialect only)** – All SQL scripts are written specifically for `psql`  
-- **Python** – Data acquisition, profiling, and analysis utilities  
-- **Power BI** – Business intelligence dashboards and reports  
+- **PostgreSQL (psql)** – Data warehouse and ETL implementation
+- **SQL (PostgreSQL dialect only)** – All SQL scripts are written specifically for `psql`
+- **Python** – Data acquisition, profiling, and analysis utilities
+- **Power BI** – Business intelligence dashboards and reports
 
 > ⚠️ **Important:**  
 > All SQL scripts in this repository are written for **PostgreSQL (psql)** and are **not compatible** with MySQL, SQL Server, or Oracle without modification.
@@ -71,134 +74,146 @@ The solution follows **enterprise data warehousing best practices**, including l
     ├── export_bi_tables.sh
     ├── load_csv_to_pandas.py
     └── weather_data.py
-📊 Data Sources
-Traffic Accident Data (Brno Open Data):
-https://data.brno.cz/datasets/298c37feb1064873abdccdc2a10b605f_0/about
+````
 
-Vehicle Traffic Intensity Data:
-https://data.brno.cz/datasets/dopravni-intenzita
+---
 
-Weather Data (Open-Meteo API):
-https://archive-api.open-meteo.com/v1/archive
+## 📊 Data Sources
 
-🧱 Data Warehouse Architecture
-The solution follows a layered ETL architecture:
+* **Traffic Accident Data (Brno Open Data):**
+  [https://data.brno.cz/datasets/298c37feb1064873abdccdc2a10b605f_0/about](https://data.brno.cz/datasets/298c37feb1064873abdccdc2a10b605f_0/about)
 
-text
-Copy code
-CSV Source Files
-   ↓
-Staging Layer
-   ↓
-Core Cleaning & Validation Views
-   ↓
-Dimensional Data Warehouse (Star Schema)
-   ↓
-BI Views
-   ↓
-Power BI Dashboards
-Key Design Features
-Star schema optimized for analytics
+* **Vehicle Traffic Intensity Data:**
+  [https://data.brno.cz/datasets/dopravni-intenzita](https://data.brno.cz/datasets/dopravni-intenzita)
 
-Slowly Changing Dimension (Type 2) for location history
+* **Weather Data (Open-Meteo API):**
+  [https://archive-api.open-meteo.com/v1/archive](https://archive-api.open-meteo.com/v1/archive)
 
-Incremental and idempotent ETL
+---
 
-Data quality validation and auditing
+## 🧱 Data Warehouse Architecture
 
-BI-friendly semantic layer
+The solution follows a **layered ETL architecture**:
 
-🗄️ PostgreSQL Schemas Used
-staging – Raw data loaded from CSV files
+[![ETL architecture](documents/ETL_architecture.png)]
+### Key Design Features
 
-core – Cleaned and validated views
+* Star schema optimized for analytics
+* Slowly Changing Dimension (Type 2) for location history
+* Incremental and idempotent ETL
+* Data quality validation and auditing
+* BI-friendly semantic layer
 
-dim – Dimension tables
+---
 
-fact – Fact tables
+## 🗄️ PostgreSQL Schemas Used
 
-etl – ETL control and watermark tracking
+* **staging** – Raw data loaded from CSV files
+* **core** – Cleaned and validated views
+* **dim** – Dimension tables
+* **fact** – Fact tables
+* **etl** – ETL control and watermark tracking
+* **bi** – Read-only BI views for reporting
 
-bi – Read-only BI views for reporting
+---
 
-🚀 How to Run the Project
-1️⃣ Prerequisites
-PostgreSQL 13+
+## 🚀 How to Run the Project
 
-psql command-line tool
+### 1️⃣ Prerequisites
 
-Python 3.9+
+* PostgreSQL 13+
+* `psql` command-line tool
+* Python 3.9+
+* Power BI Desktop
 
-Power BI Desktop
+### 2️⃣ Clone the Repository
 
-2️⃣ Clone the Repository
-bash
-Copy code
+```bash
 git clone https://github.com/herobala/brno_traffic.git
 cd brno_traffic
-3️⃣ Create PostgreSQL Database
-sql
-Copy code
+```
+
+### 3️⃣ Create PostgreSQL Database
+
+```sql
 CREATE DATABASE brno_traffic_dw;
-bash
-Copy code
+```
+
+```bash
 psql -d brno_traffic_dw
-4️⃣ Run the Full ETL Pipeline
-sql
-Copy code
+```
+
+### 4️⃣ Run the Full ETL Pipeline
+
+```sql
 \i sql/run_pipeline.sql
-5️⃣ Verify Data Quality
-sql
-Copy code
+```
+
+### 5️⃣ Verify Data Quality
+
+```sql
 \i sql/09_sanity_check.sql
-🔁 Incremental Loading & SCD Demo
-Incremental loading test:
+```
 
-sql
-Copy code
-\i sql/11_test_incremental_loading.sql
-Incremental loading proof:
+---
 
-sql
-Copy code
-\i sql/12_proof_incremental_loading.sql
-SCD Type 2 demo:
+## 🔁 Incremental Loading & SCD Demo
 
-sql
-Copy code
-\i sql/13_demo_scd_location.sql
-📈 Power BI Usage
-Open documents/brno_traffic.pbix
+* **Incremental loading test:**
 
-Update database connection if needed
+  ```sql
+  \i sql/11_test_incremental_loading.sql
+  ```
 
-Refresh data
+* **Incremental loading proof:**
 
-Explore dashboards and insights
+  ```sql
+  \i sql/12_proof_incremental_loading.sql
+  ```
 
-🐍 Python Utilities
-bash
-Copy code
+* **SCD Type 2 demo:**
+
+  ```sql
+  \i sql/13_demo_scd_location.sql
+  ```
+
+---
+
+## 📈 Power BI Usage
+
+* Open `documents/brno_traffic.pbix`
+* Update database connection if needed
+* Refresh data
+* Explore dashboards and insights
+
+---
+
+## 🐍 Python Utilities
+
+```bash
 pip install -r requirements.txt
+```
+
 Key scripts include:
 
-weather_data.py
+* `weather_data.py`
+* `data_profiler.py`
+* `dw_insight_analysis.py`
+* `er_diagram.py`
 
-data_profiler.py
+---
 
-dw_insight_analysis.py
+## 📄 Documentation
 
-er_diagram.py
+* **Full project report:**
+  `documents/Brno_Traffic_Accident_Data_Warehouse.docx`
 
-📄 Documentation
-Full project report:
-documents/Brno_Traffic_Accident_Data_Warehouse.docx
+* **ER Diagram:**
+  `documents/brno_traffic_er_diagram.png`
 
-ER Diagram:
-documents/brno_traffic_er_diagram.png
+---
 
-👤 Author
-Hero Bala
-Course: ENA-BIDS
+## 👤 Author
 
-✅ You are now ready to clone, run, analyze, and extend this project.
+**Hero Bala**
+
