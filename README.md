@@ -1,4 +1,3 @@
-````markdown
 # Brno Traffic Accident Data Warehouse & Business Intelligence
 
 This project implements a **full end-to-end data warehouse and business intelligence solution** for analyzing traffic accidents in the city of Brno.  
@@ -7,9 +6,13 @@ It integrates **traffic accident data, vehicle traffic intensity data, and weath
 The solution follows **enterprise data warehousing best practices**, including layered ETL, dimensional modeling, Slowly Changing Dimensions (SCD Type 2), incremental loading, and BI-ready semantic views.
 
 🔗 **Project Repository:**  
-https://github.com/herobala/brno_traffic
+[https://github.com/herobala/brno_traffic](https://github.com/herobala/brno_traffic)
+
+---
 
 ## 📊 Power BI Dashboard
+
+> Click the image below to open the interactive Power BI dashboard.
 
 [![Power BI Dashboard](dashboard.png)](https://app.powerbi.com/view?r=eyJrIjoiZTI3NWVkNmQtMDI2ZS00OGE4LTk1N2EtNjBjMTgyMGFhNmNhIiwidCI6IjBmYzM3OWMyLTlhYWMtNGExYy05ZmJkLWY0ZGMyMDk5OWU5YyIsImMiOjh9)
 
@@ -68,28 +71,21 @@ https://github.com/herobala/brno_traffic
     ├── export_bi_tables.sh
     ├── load_csv_to_pandas.py
     └── weather_data.py
-````
+📊 Data Sources
+Traffic Accident Data (Brno Open Data):
+https://data.brno.cz/datasets/298c37feb1064873abdccdc2a10b605f_0/about
 
----
+Vehicle Traffic Intensity Data:
+https://data.brno.cz/datasets/dopravni-intenzita
 
-## 📊 Data Sources
+Weather Data (Open-Meteo API):
+https://archive-api.open-meteo.com/v1/archive
 
-* **Traffic Accident Data (Brno Open Data):**
-  [https://data.brno.cz/datasets/298c37feb1064873abdccdc2a10b605f_0/about](https://data.brno.cz/datasets/298c37feb1064873abdccdc2a10b605f_0/about)
+🧱 Data Warehouse Architecture
+The solution follows a layered ETL architecture:
 
-* **Vehicle Traffic Intensity Data:**
-  [https://data.brno.cz/datasets/dopravni-intenzita](https://data.brno.cz/datasets/dopravni-intenzita)
-
-* **Weather Data (Open-Meteo API):**
-  [https://archive-api.open-meteo.com/v1/archive](https://archive-api.open-meteo.com/v1/archive)
-
----
-
-## 🧱 Data Warehouse Architecture
-
-The solution follows a **layered ETL architecture**:
-
-```
+text
+Copy code
 CSV Source Files
    ↓
 Staging Layer
@@ -101,193 +97,108 @@ Dimensional Data Warehouse (Star Schema)
 BI Views
    ↓
 Power BI Dashboards
-```
+Key Design Features
+Star schema optimized for analytics
 
-### Key Design Features
+Slowly Changing Dimension (Type 2) for location history
 
-* Star schema optimized for analytics
-* Slowly Changing Dimension (Type 2) for location history
-* Incremental and idempotent ETL
-* Data quality validation and auditing
-* BI-friendly semantic layer
+Incremental and idempotent ETL
 
----
+Data quality validation and auditing
 
-## 🗄️ PostgreSQL Schemas Used
+BI-friendly semantic layer
 
-* **staging** – Raw data loaded from CSV files
-* **core** – Cleaned and validated views
-* **dim** – Dimension tables
-* **fact** – Fact tables
-* **etl** – ETL control and watermark tracking
-* **bi** – Read-only BI views for reporting
+🗄️ PostgreSQL Schemas Used
+staging – Raw data loaded from CSV files
 
----
+core – Cleaned and validated views
 
-## 🚀 How to Run the Project
+dim – Dimension tables
 
-### 1️⃣ Prerequisites
+fact – Fact tables
 
-* PostgreSQL 13+ installed
-* `psql` command-line tool available
-* Python 3.9+
-* Power BI Desktop (for dashboards)
+etl – ETL control and watermark tracking
 
----
+bi – Read-only BI views for reporting
 
-### 2️⃣ Clone the Repository
+🚀 How to Run the Project
+1️⃣ Prerequisites
+PostgreSQL 13+
 
-```bash
+psql command-line tool
+
+Python 3.9+
+
+Power BI Desktop
+
+2️⃣ Clone the Repository
+bash
+Copy code
 git clone https://github.com/herobala/brno_traffic.git
 cd brno_traffic
-```
-
----
-
-### 3️⃣ Create PostgreSQL Database
-
-```sql
+3️⃣ Create PostgreSQL Database
+sql
+Copy code
 CREATE DATABASE brno_traffic_dw;
-```
-
-Connect to it:
-
-```bash
+bash
+Copy code
 psql -d brno_traffic_dw
-```
-
----
-
-### 4️⃣ Run the Full ETL Pipeline (Recommended)
-
-From inside `psql`:
-
-```sql
+4️⃣ Run the Full ETL Pipeline
+sql
+Copy code
 \i sql/run_pipeline.sql
-```
-
-This single command will:
-
-1. Create staging tables
-2. Load CSV files
-3. Create clean core views
-4. Create dimension tables
-5. Apply SCD Type 2 logic
-6. Create fact tables
-7. Load facts incrementally
-8. Create BI views
-9. Run sanity checks
-
----
-
-### 5️⃣ Verify Data Quality
-
-Optional but recommended:
-
-```sql
+5️⃣ Verify Data Quality
+sql
+Copy code
 \i sql/09_sanity_check.sql
-```
+🔁 Incremental Loading & SCD Demo
+Incremental loading test:
 
----
+sql
+Copy code
+\i sql/11_test_incremental_loading.sql
+Incremental loading proof:
 
-## 🔁 Incremental Loading & SCD Demo
+sql
+Copy code
+\i sql/12_proof_incremental_loading.sql
+SCD Type 2 demo:
 
-The project includes ready-to-run demos:
+sql
+Copy code
+\i sql/13_demo_scd_location.sql
+📈 Power BI Usage
+Open documents/brno_traffic.pbix
 
-* **Incremental loading test:**
+Update database connection if needed
 
-  ```sql
-  \i sql/11_test_incremental_loading.sql
-  ```
+Refresh data
 
-* **Incremental loading proof:**
+Explore dashboards and insights
 
-  ```sql
-  \i sql/12_proof_incremental_loading.sql
-  ```
-
-* **SCD Type 2 location demo:**
-
-  ```sql
-  \i sql/13_demo_scd_location.sql
-  ```
-
----
-
-## 📈 Power BI Usage
-
-1. Open `documents/brno_traffic.pbix` in **Power BI Desktop**
-2. Update database connection if needed
-3. Refresh data
-4. Explore:
-
-   * KPI dashboard
-   * Trend & seasonality analysis
-   * Weather impact analysis
-   * Spatial hotspot analysis
-
----
-
-## 🐍 Python Utilities
-
-Install dependencies:
-
-```bash
+🐍 Python Utilities
+bash
+Copy code
 pip install -r requirements.txt
-```
+Key scripts include:
 
-Key scripts:
+weather_data.py
 
-* `weather_data.py` – Fetches weather data from Open-Meteo
-* `data_profiler.py` – Dataset profiling and quality checks
-* `dw_insight_analysis.py` – Analytical summaries
-* `er_diagram.py` – ER diagram generation
-* `load_csv_to_pandas.py` – CSV inspection
-* `export_*` scripts – Export warehouse tables
+data_profiler.py
 
----
+dw_insight_analysis.py
 
-## 🔍 Reproducibility & Reliability
+er_diagram.py
 
-* One-command ETL execution
-* Incremental-safe re-runs
-* Full referential integrity
-* Grain protection via constraints
-* Audit timestamps on all layers
+📄 Documentation
+Full project report:
+documents/Brno_Traffic_Accident_Data_Warehouse.docx
 
----
+ER Diagram:
+documents/brno_traffic_er_diagram.png
 
-## 📄 Documentation
-
-* Full project report:
-  `documents/Brno_Traffic_Accident_Data_Warehouse.docx`
-
-* ER Diagram:
-  `documents/brno_traffic_er_diagram.png`
-
----
-
-## 📌 Notes
-
-* All SQL scripts are **PostgreSQL-specific**
-* CSV paths assume project root structure
-* Designed for academic, learning, and demonstration purposes
-
----
-
-## 🏁 License & Usage
-
-This project is intended for **educational and academic use**.
-Data sources are governed by their respective open data licenses.
-
----
-
-## 👤 Author
-
-**Hero Bala**
+👤 Author
+Hero Bala
 Course: ENA-BIDS
 
----
-
-✅ **You are now ready to clone, run, analyze, and extend this project.**
-
+✅ You are now ready to clone, run, analyze, and extend this project.
